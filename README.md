@@ -2,7 +2,7 @@
 
 ## Clone the repository with all submodules:
 ```bash
-git submodule pull  --recursive
+git submodule update --recursive
 ```
 
 ## Requirements:
