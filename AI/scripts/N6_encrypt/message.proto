@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+// When compiling for python:
+// - Comment the import line below
+// - Comment the attributes that contain (nanopb)
+import "nanopb.proto";                                              // COMMENT ME FOR PYTHON
+
+// Used to send / receive raw data in chunks (or not)
+message RawData {
+    enum Status {
+        STATUS_FIRST_CHUNK = 0;
+        STATUS_LAST_CHUNK = 1;
+        STATUS_UNIQUE_CHUNK = 2;
+        STATUS_MIDDLE_CHUNK = 3;
+    }
+    Status stat = 1;
+    int32 chunk_no = 2;
+    bytes data = 3 [(nanopb).max_size = 4096];                      // COMMENT ME FOR PYTHON (only the [ ... ] part)
+    int32 base_address = 4;
+}
+message RawDataAck{
+    int32 chunk_no = 1;
+}
+
+// Used to send keys and number of rounds from the server to the client
+message EncryptionParams{
+    repeated int32 keys = 1;
+    int32 nb_rounds = 2;
+}
+
+// general ack
+message GeneralAcknowledge{
+}
+
+message MyMessage {
+    option (nanopb_msgopt).submsg_callback = true;                  // COMMENT ME FOR PYTHON
+
+    uint32 status = 1;      // Provision
+    oneof payload {
+        EncryptionParams encryption_params = 4;
+        RawData raw_data = 5;
+        RawDataAck raw_data_ack = 6;
+        GeneralAcknowledge ack = 7;
+    }
+}

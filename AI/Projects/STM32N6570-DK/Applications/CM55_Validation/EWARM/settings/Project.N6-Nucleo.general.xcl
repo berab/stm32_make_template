@@ -1,0 +1,13 @@
+"C:\Program Files\IAR Systems\Embedded Workbench 9.4\arm\bin\armPROC.dll" 
+
+"C:\Program Files\IAR Systems\Embedded Workbench 9.4\arm\bin\armSTLINK.dll" 
+
+"C:\ST\STEdgeAI\2.1\Projects\STM32N6570-DK\Applications\NPU_Validation_M55\EWARM\N6-Nucleo\Exe\Project.out" 
+
+--plugin="C:\Program Files\IAR Systems\Embedded Workbench 9.4\arm\bin\armbat.dll" 
+
+--macro="C:\ST\STEdgeAI\2.1\Projects\STM32N6570-DK\Applications\NPU_Validation_M55\EWARM\n6.mac" 
+
+
+
+

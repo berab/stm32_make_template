@@ -1,0 +1,185 @@
+# 
+# Makefile to generate NPU/ATONN relocatable binary files
+#
+# GCC version
+#
+# v1.0 - Initial version
+# 
+
+THIS_MAKEFILE := $(lastword $(MAKEFILE_LIST))
+TOP := $(patsubst %/$(THIS_MAKEFILE),%,$(abspath $(THIS_MAKEFILE)))
+
+CROSS_COMPILE ?= arm-none-eabi-
+
+CC = ${CROSS_COMPILE}gcc
+OBJDUMP = ${CROSS_COMPILE}objdump
+OBJCOPY = ${CROSS_COMPILE}objcopy
+SIZE = ${CROSS_COMPILE}size
+
+BUILD_DIR ?= ${TOP}/build
+RESOURCES_DIR ?= $(abspath ${THIS_MAKEFILE}/..)
+
+RT_ATON_ROOT_DIR ?= ${RESOURCES_DIR}/dev/npu/
+SW_LIB_DIR ?= ${RESOURCES_DIR}/dev/embednets
+
+SW_LIB_INC_DIR ?= ${SW_LIB_DIR}/inc
+SW_LIB_LIB_DIR ?= ${SW_LIB_DIR}/lib
+SW_LIB_NAME ?= :network_runtime_gcc_pic.a
+SW_LIB_PATH ?= -L ${SW_LIB_LIB_DIR} -l${SW_LIB_NAME}
+
+PLT_DIR ?= ${RESOURCES_DIR}/platform/STM32N6xx
+RT_ATON_DEVICES_DIR ?= ${RT_ATON_ROOT_DIR}/Devices/STM32N6xx
+RT_ATON_LL_ATON_DIR ?= ${RT_ATON_ROOT_DIR}/ll_aton
+
+LKR_FILE ?= ${RESOURCES_DIR}/reloc_network_gcc.lkr
+
+TARGET ?= network
+
+$(info ----------------------------)
+$(info THIS_MAKEFILE = $(abspath ${THIS_MAKEFILE}))
+$(info BUILD_DIR = ${BUILD_DIR})
+$(info TARGET = ${TARGET})
+$(info RESOURCES_DIR = ${RESOURCES_DIR})
+$(info RT_ATON_ROOT_DIR = ${RT_ATON_ROOT_DIR})
+$(info RT_ATON_DEVICES_DIR = ${RT_ATON_DEVICES_DIR})
+$(info RT_ATON_LL_ATON_DIR = ${RT_ATON_LL_ATON_DIR})
+$(info SW_LIB_INC_DIR = ${SW_LIB_INC_DIR})
+$(info SW_LIB_PATH = ${SW_LIB_PATH})
+$(info PLT_DIR = ${PLT_DIR})
+$(info LKR_FILE = ${LKR_FILE})
+$(info COMPATIBLE_MODE = ${COMPATIBLE_MODE})
+$(info ----------------------------)
+$(info )
+
+
+
+NET_EXT = _reloc
+NET_EXT_MEM = _reloc_mempools
+
+# options
+RT_ATON_DEFINES = -DMODEL_CONF=\"${TARGET}_reloc_conf.h\"
+RT_ATON_DEFINES += -DLL_ATON_DUMP_DEBUG_API
+RT_ATON_DEFINES += -DLL_ATON_PLATFORM=LL_ATON_PLAT_STM32N6
+RT_ATON_DEFINES += -DLL_ATON_OSAL=LL_ATON_OSAL_BARE_METAL -DLL_ATON_RT_MODE=LL_ATON_RT_ASYNC
+RT_ATON_DEFINES += -DLL_ATON_SW_FALLBACK
+ifeq ($(strip $(EB_DBG_INFO)),y)
+RT_ATON_DEFINES += -DLL_ATON_EB_DBG_INFO
+endif
+RT_ATON_DEFINES += -DLL_ATON_DBG_BUFFER_INFO_EXCLUDED=1
+RT_ATON_DEFINES += -DLL_ATON_RT_RELOC
+ifeq ($(strip $(ECBLOB_IN_PARAMS)),y)
+RT_ATON_DEFINES += -DECBLOB_CONST_SECTION="__attribute__((used, section (\".const_ec_blob\"), ))"
+endif
+# RT_ATON_DEFINES += -DNDEBUG
+
+RT_RELOC_DEFINES += -DBUILD_AI_NETWORK_RELOC 
+
+CFLAGS_OPT += -std=gnu99 -mno-thumb-interwork -ffast-math -fsingle-precision-constant
+CFLAGS_OPT += -fvisibility=hidden -fno-unwind-tables -fstack-reuse=all -ffunction-sections
+CFLAGS_OPT += -fdata-sections -fno-math-errno -fomit-frame-pointer
+CFLAGS_OPT += -fno-builtin
+
+CFLAGS_OPT += -Os
+
+# cortex-m55 options
+CORE_OPTIONS += -mthumb -mcpu=cortex-m55 -mfpu=fpv4-sp-d16 -mtune=cortex-m55 -mfloat-abi=hard
+
+# secure mode
+ifneq ($(strip $(SECURE_MODE)),)
+CORE_OPTIONS += -mcmse
+endif
+
+CFLAGS_PIC += -fpic
+CFLAGS_PIC += -mno-pic-data-is-text-relative
+CFLAGS_PIC += -msingle-pic-base -mpic-register=r9
+# CFLAGS_PIC += -mpoke-function-name
+
+LDFLAGS_OPT += -T ${LKR_FILE}
+LDFLAGS_OPT += -nostartfiles -nostdlib
+LDFLAGS_OPT += -Wl,--gc-sections -Wl,--cref -Bstatic -Wl,--emit-relocs
+# LDFLAGS_OPT += -Wl,--unresolved-symbols=ignore-in-object-files
+LDFLAGS_OPT += -Wl,-Map,${BUILD_DIR}/${TARGET}.map
+
+LDFLAGS_OPT += ${SW_LIB_PATH}
+
+
+SRC += ${BUILD_DIR}/${TARGET}${NET_EXT}.c
+SRC += ${BUILD_DIR}/${TARGET}${NET_EXT_MEM}.c
+SRC += $(RT_ATON_LL_ATON_DIR)/ll_aton.c
+SRC += $(RT_ATON_LL_ATON_DIR)/ll_aton_util.c
+# SRC += $(RT_ATON_LL_ATON_DIR)/ll_aton_lib.c
+SRC += $(RT_ATON_LL_ATON_DIR)/ll_aton_lib_sw_operators.c
+SRC += $(RT_ATON_LL_ATON_DIR)/ll_sw_integer.c
+SRC += $(RT_ATON_LL_ATON_DIR)/ll_sw_float.c
+SRC += $(RT_ATON_LL_ATON_DIR)/ecloader.c
+
+OBJ += $(BUILD_DIR)/${TARGET}${NET_EXT}.o
+OBJ += $(BUILD_DIR)/ll_aton.o
+OBJ += $(BUILD_DIR)/ll_aton_util.o
+OBJ += $(BUILD_DIR)/ll_sw_integer.o
+OBJ += $(BUILD_DIR)/ll_sw_float.o
+OBJ += $(BUILD_DIR)/ll_aton_lib_sw_operators.o
+OBJ += $(BUILD_DIR)/ecloader.o
+
+OBJ_EXTRA = $(BUILD_DIR)/${TARGET}${NET_EXT_MEM}.o $(BUILD_DIR)/ll_aton_reloc_callbacks.o
+
+CFLAGS += ${CORE_OPTIONS} ${CFLAGS_PIC} ${CFLAGS_OPT} ${RT_RELOC_DEFINES} ${RT_ATON_DEFINES}
+CFLAGS += -I${PLT_DIR} -I${PLT_DIR}/.. -I${RT_ATON_LL_ATON_DIR} -I${RT_ATON_DEVICES_DIR} -I${BUILD_DIR}
+
+LDFLAGS += ${LDFLAGS_OPT}
+# -lgcc
+
+all: $(BUILD_DIR)/${TARGET}.elf
+
+clean:
+	$(RM) ${BUILD_DIR}/*.o
+	$(RM) ${BUILD_DIR}/*.d
+	$(RM) ${BUILD_DIR}/*.hex
+	$(RM) ${BUILD_DIR}/$(TARGET).*
+
+$(BUILD_DIR)/${TARGET}${NET_EXT}.o:  ${BUILD_DIR}/${TARGET}${NET_EXT}.c ${RT_ATON_LL_ATON_DIR}/ll_aton_reloc_network.h
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) -MMD -c "$<" -o "$@"
+
+$(BUILD_DIR)/${TARGET}${NET_EXT}_mempools.o:  ${BUILD_DIR}/${TARGET}${NET_EXT}_mempools.c
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) -MMD -c "$<" -o "$@"
+
+$(BUILD_DIR)/ll_aton_reloc_callbacks.o:  ${RT_ATON_LL_ATON_DIR}/ll_aton_reloc_callbacks.c ${RT_ATON_LL_ATON_DIR}/ll_aton_reloc_network.h
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) -MMD -c "$<" -o "$@"
+
+$(BUILD_DIR)/ll_aton.o:  ${RT_ATON_LL_ATON_DIR}/ll_aton.c
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) -MMD -c "$<" -o "$@"
+
+$(BUILD_DIR)/ll_aton_lib.o:  ${RT_ATON_LL_ATON_DIR}/ll_aton_lib.c
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) -MMD -c "$<" -o "$@"
+
+$(BUILD_DIR)/ll_aton_util.o:  ${RT_ATON_LL_ATON_DIR}/ll_aton_util.c
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) -MMD -c "$<" -o "$@"
+
+$(BUILD_DIR)/ll_aton_lib_sw_operators.o: ${RT_ATON_LL_ATON_DIR}/ll_aton_lib_sw_operators.c
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) -DNDEBUG -I${RT_LIB_DIR}/inc -MMD -c "$<" -o "$@"
+
+$(BUILD_DIR)/ll_sw_integer.o: ${RT_ATON_LL_ATON_DIR}/ll_sw_integer.c
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) -I${SW_LIB_INC_DIR} -MMD -c "$<" -o "$@"
+
+$(BUILD_DIR)/ll_sw_float.o: ${RT_ATON_LL_ATON_DIR}/ll_sw_float.c
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) -I${SW_LIB_INC_DIR} -MMD -c "$<" -o "$@"
+
+$(BUILD_DIR)/ecloader.o: ${RT_ATON_LL_ATON_DIR}/ecloader.c
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) -DNDEBUG -I ${SW_LIB_INC_DIR} -MMD -c "$<" -o "$@"
+
+$(BUILD_DIR)/${TARGET}.elf: ${OBJ} $(OBJ_EXTRA) ${LKR_FILE}
+	mkdir -p $(@D)
+	$(CC) ${CORE_OPTIONS} ${CFLAGS_PIC} ${CFLAGS_OPT}  ${OBJ} ${LDFLAGS} $(OBJ_EXTRA) -o "$@"
+	$(OBJCOPY) -j.relocs -j.flash -j.data -O binary "$@" "$@.bin"
+	$(OBJDUMP) "$@" -h -DS -r > "$@.S"
+	$(SIZE) "$@"

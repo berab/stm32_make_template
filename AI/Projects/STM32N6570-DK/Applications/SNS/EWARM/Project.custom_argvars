@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<iarUserArgVars>
+    <group name="Embedded Workbench" active="true">
+        <variable>
+            <name>EW_VERSION</name>
+            <value>Arm 9.40.1</value>
+        </variable>
+    </group>
+</iarUserArgVars>
