@@ -19,13 +19,13 @@ TARGET = stm32n6_make_template_FSBL
 # Processed on NPU or CM55
 PROC ?= NPU
 MODEL_DIR = onnx_models
-MODEL = fff_uint8_v1
+MODEL = fff_v1
 SCRIPT_DIR = scripts
 SCRIPT = n6_loader.py 
 MODEL_OUTPUT_DIR = st_ai_output
 VAL_DIR = AI/Projects/STM32N6570-DK/Applications/$(PROC)_Validation
 PROJECT_PATH = /home/kilic/workspace/embedded/stm/stm32n6/make_template_ai/AI/Projects/STM32N6570-DK/Applications/NPU_Validation
-SCRIPT_ARGS = --config $(SCRIPT_DIR)/config.json --build-config N6-Nucleo --network-file $(MODEL_OUTPUT_DIR)/network.c --project-path $(VAL_DIR)
+SCRIPT_ARGS = --config $(SCRIPT_DIR)/config.json --build-config N6-Nucleo --network-file $(MODEL_OUTPUT_DIR)/$(MODEL).c --project-path $(VAL_DIR)
 AI_FLAGS = --st-neural-art
 ifeq ($(PROC), CM55)
 SCRIPT = cm55_loader.py
@@ -212,10 +212,10 @@ $(BUILD_DIR):
 
 
 $(MODEL_OUTPUT_DIR):
-	stedgeai generate -m $(MODEL_DIR)/$(MODEL).onnx --target stm32n6 $(AI_FLAGS)
+	stedgeai generate -m $(MODEL_DIR)/$(MODEL)_uint8.onnx --target stm32n6 $(AI_FLAGS) --name $(MODEL)
 
 run_script: 
-	python $(SCRIPT_DIR)/$(SCRIPT) $(SCRIPT_ARGS)
+	python3 $(SCRIPT_DIR)/$(SCRIPT) $(SCRIPT_ARGS)
 
 
 #######################################
