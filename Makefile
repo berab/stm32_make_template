@@ -15,11 +15,17 @@
 ######################################
 TARGET = stm32n6_make_template_FSBL
 
+# ST
+stlink =  /opt/st/stm32cubeide_2.0.0/plugins/com.st.stm32cube.ide.mcu.externaltools.stlink-gdb-server.linux64_2.2.300.202509021040/tools/bin/ST-LINK_gdbserver
+st_prog_bin = /home/kilic/apps/STM32CubeProgrammer/bin
+st_prog = $(st_prog_bin)/STM32_Programmer_CLI
+
 # AI
 # Processed on NPU or CM55
 PROC ?= NPU
 MODEL_DIR = onnx_models
-MODEL = fff_v1
+MODEL = network
+# MODEL = fff_v1
 SCRIPT_DIR = scripts
 SCRIPT = n6_loader.py 
 MODEL_OUTPUT_DIR = st_ai_output
@@ -99,11 +105,13 @@ CC = $(GCC_PATH)/$(PREFIX)gcc
 AS = $(GCC_PATH)/$(PREFIX)gcc -x assembler-with-cpp
 CP = $(GCC_PATH)/$(PREFIX)objcopy
 SZ = $(GCC_PATH)/$(PREFIX)size
+GDB = $(GCC_PATH)/$(PREFIX)gdb
 else
 CC = $(PREFIX)gcc
 AS = $(PREFIX)gcc -x assembler-with-cpp
 CP = $(PREFIX)objcopy
 SZ = $(PREFIX)size
+GDB = $(PREFIX)gdb
 endif
 HEX = $(CP) -O ihex
 BIN = $(CP) -O binary -S
@@ -174,6 +182,7 @@ LDFLAGS = $(MCU) -specs=nano.specs -T$(LDSCRIPT) $(LIBDIR) $(LIBS) -Wl,-Map=$(BU
 
 # default action: build all
 all: $(MODEL_OUTPUT_DIR) run_script
+# all: $(MODEL_OUTPUT_DIR) run_script convert reset flash gdb_server debug
 # all: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET).bin
 
 
@@ -216,6 +225,23 @@ $(MODEL_OUTPUT_DIR):
 
 run_script: 
 	python3 $(SCRIPT_DIR)/$(SCRIPT) $(SCRIPT_ARGS)
+
+# Converting meomry files to .hex / not sure why xd
+convert:
+	$(CP) --change-addresses 0x71000000 -Ibinary -Oihex $(MODEL)_atonbuf.xSPI2.raw $(MODEL)_atonbuf.xSPI2.hex
+
+reset:
+	$(st_prog) -q -c port=SWD mode=powerdown freq=2000 ap=1
+
+flash:
+	$(st_prog) -q -c port=SWD mode=hotplug ap=1 --extload $(st_prog_bin)/ExternalLoader/MX25UM51245G_STM32N6570-NUCLEO.stldr --download st_ai_output/$(MODEL)_atonbuf.xSPI2.hex --verify
+
+gdb_server:
+	$(stlink) -d --frequency 2000 --apid 1 -v --port-number 61234 -cp $(st_prog_bin)
+
+debug:
+	$(GDB) -batch --command=AI/Projects/STM32N6570-DK/Applications/NPU_Validation/armgcc/n6_commands.gdb AI/Projects/STM32N6570-DK/Applications/NPU_Validation/armgcc/build/N6-Nucleo/Project.elf
+
 
 
 #######################################
