@@ -1,4 +1,3 @@
-GCC_PATH ?= "/c/ST/STM32CubeIDE_1.17.0/STM32CubeIDE/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.12.3.rel1.win32_1.1.0.202410251130/tools/bin"
 ######################################
 # helpers
 ######################################
@@ -47,7 +46,7 @@ VALIDATION_SOURCES += $(MIDDLEWARES_PATH)/AI/Misc/Src/aiTestHelper.c
 VALIDATION_SOURCES += $(MIDDLEWARES_PATH)/AI/Misc/Src/aiTestUtility.c
 VALIDATION_SOURCES += $(MIDDLEWARES_PATH)/AI/Validation/Src/aiValidation.c
 VALIDATION_SOURCES += $(MIDDLEWARES_PATH)/AI/Misc/Src/ai_device_adaptor.c
-VALIDATION_SOURCES += $(VALIDATION_PATH)/app_x-cube-ai.c
+# VALIDATION_SOURCES += $(VALIDATION_PATH)/app_x-cube-ai.c
 VALIDATION_SOURCES += $(MIDDLEWARES_PATH)/AI/Misc/Src/lc_print.c
 VALIDATION_SOURCES += $(VALIDATION_PATH)/network.c
 VALIDATION_SOURCES += $(VALIDATION_PATH)/network_data.c

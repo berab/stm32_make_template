@@ -15,6 +15,27 @@
 ######################################
 TARGET = stm32n6_make_template_FSBL
 
+# AI
+# Processed on NPU or CM55
+PROC ?= NPU
+MODEL_DIR = onnx_models
+MODEL = fff_uint8_v1
+SCRIPT_DIR = scripts
+SCRIPT = n6_loader.py 
+MODEL_OUTPUT_DIR = st_ai_output
+VAL_DIR = AI/Projects/STM32N6570-DK/Applications/$(PROC)_Validation
+PROJECT_PATH = /home/kilic/workspace/embedded/stm/stm32n6/make_template_ai/AI/Projects/STM32N6570-DK/Applications/NPU_Validation
+SCRIPT_ARGS = --config $(SCRIPT_DIR)/config.json --build-config N6-Nucleo --network-file $(MODEL_DIR)/$(MODEL).onnx --project-path $(VAL_DIR)
+AI_FLAGS = --st-neural-art
+ifeq ($(PROC), CM55)
+SCRIPT = cm55_loader.py
+SCRIPT_ARGS += 
+AI_FLAGS = --c-api legacy
+endif
+
+
+
+
 
 ######################################
 # building variables
@@ -152,7 +173,8 @@ LIBDIR =
 LDFLAGS = $(MCU) -specs=nano.specs -T$(LDSCRIPT) $(LIBDIR) $(LIBS) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref -Wl,--gc-sections -Wl,--cmse-implib -Wl,--out-implib=./build/secure_nsclib.o
 
 # default action: build all
-all: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET).bin
+all: $(MODEL_OUTPUT_DIR)
+# all: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET).bin
 
 
 #######################################
@@ -188,11 +210,19 @@ $(BUILD_DIR)/%.bin: $(BUILD_DIR)/%.elf | $(BUILD_DIR)
 $(BUILD_DIR):
 	mkdir $@		
 
+
+$(MODEL_OUTPUT_DIR):
+	stedgeai generate -m $(MODEL_DIR)/$(MODEL).onnx --target stm32n6 $(AI_FLAGS)
+
+run_script: 
+	python $(SCRIPT_DIR)/$(SCRIPT) $(SCRIPT_ARGS)
+
+
 #######################################
 # clean up
 #######################################
 clean:
-	-rm -fR $(BUILD_DIR)
+	-rm -fR $(BUILD_DIR) $(MODEL_OUTPUT_DIR) st_ai_ws *log
   
 #######################################
 # dependencies
