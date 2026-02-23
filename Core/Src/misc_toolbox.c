@@ -22,7 +22,9 @@
 #include "app_config.h"
 #include "npu_cache.h"  // Used in NPU_config
 #include "stm32n6xx_ll_usart.h" // Used for configuring UART
+#if defined(LL_ATON_PLATFORM)
 #include "ai_wrapper_ATON.h"    // Used to get NPU cache enable / counters info
+#endif
 
 UART_HandleTypeDef UartHandle;
 
@@ -227,55 +229,24 @@ void UART_Config(void)
   UartHandle.Instance->CR1 &= ~USART_CR1_FIFOEN;
 }
 
-/**
-* @brief  USB RIF Configuration.
-* @retval None
-*/
-void USB_RIF_Config(void)
-{
-  RIMC_MasterConfig_t     RIMC_master = {0};
-
-  __HAL_RCC_RIFSC_CLK_ENABLE();
-
-  RIMC_master.MasterCID = RIF_CID_1;
-  RIMC_master.SecPriv = RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV;
-
-  HAL_RIF_RIMC_ConfigMasterAttributes(RIF_MASTER_INDEX_OTG1, &RIMC_master);
-  HAL_RIF_RIMC_ConfigMasterAttributes(RIF_MASTER_INDEX_OTG2, &RIMC_master);
-  HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_OTG1HS, RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
-  HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_OTG2HS, RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
-}
-
-/* Weak functions implementations called by cache-enable/disable */
-void npu_cache_enable_clocks_and_reset(void)
-{
-    // Enable Cache-AXI
-  __HAL_RCC_CACHEAXI_CLK_ENABLE();
-  __HAL_RCC_CACHEAXI_FORCE_RESET();
-  __HAL_RCC_CACHEAXI_RELEASE_RESET();
-}
-
-void npu_cache_disable_clocks_and_reset(void)
-{
-    // Disable Cache-AXI
-  __HAL_RCC_CACHEAXI_FORCE_RESET();
-  __HAL_RCC_CACHEAXI_RELEASE_RESET();
-  __HAL_RCC_CACHEAXI_CLK_DISABLE();
-}
-
+#if defined(LL_ATON_PLATFORM)
 void NPU_Config(void)
 {
   // Enable NPU
   __HAL_RCC_NPU_CLK_ENABLE();
   __HAL_RCC_NPU_FORCE_RESET();
   __HAL_RCC_NPU_RELEASE_RESET();
+  // Enable Cache-AXI
+  __HAL_RCC_CACHEAXI_CLK_ENABLE();
+  __HAL_RCC_CACHEAXI_FORCE_RESET();
+  __HAL_RCC_CACHEAXI_RELEASE_RESET();
   
   // __HAL_RCC_CACHEAXI_CLK_SLEEP_DISABLE();
   // __HAL_RCC_NPU_CLK_SLEEP_DISABLE();
   // __HAL_RCC_RAMCFG_CLK_SLEEP_DISABLE();
   
 #ifdef USE_NPU_CACHE
-   npu_cache_enable();
+   npu_cache_enable(); // Useless: already enabled by init
 #else
    npu_cache_disable();
 #endif
@@ -286,8 +257,8 @@ void NPU_Config(void)
   master_conf.SecPriv = RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV; // Priviledged secure
   HAL_RIF_RIMC_ConfigMasterAttributes(RIF_MASTER_INDEX_NPU, &master_conf);  
   HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_NPU, RIF_ATTRIBUTE_PRIV | RIF_ATTRIBUTE_SEC);
-  
 }
+#endif
 
 void RISAF_Config(void)
 {
@@ -297,17 +268,21 @@ void RISAF_Config(void)
   */
   set_risaf_default(RISAF2_S);          /* SRAM1_AXI */
   set_risaf_default(RISAF3_S);          /* SRAM2_AXI */
-  
+
+#if defined(LL_ATON_PLATFORM)
   set_risaf_default(RISAF4_S);          /* NPU MST0 */
   set_risaf_default(RISAF5_S);          /* NPU MST1 */
+#endif
   
   set_risaf_default(RISAF6_S);          /* SRAM3,4,5,6_AXI */
   set_risaf_default(RISAF7_S);          /* FLEXMEM */
   
+#if defined(LL_ATON_PLATFORM)
 #ifdef USE_NPU_CACHE
   set_risaf_default(RISAF8_S);          /* NPU_CACHE */
   set_risaf_default(RISAF15_S);         /* NPU_CACHE config */
 #endif  
+#endif
   
   // set_risaf_default(RISAF9_S);       /* VENC */
   

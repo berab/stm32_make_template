@@ -38,9 +38,6 @@
 /* Exported constants --------------------------------------------------------*/
 /* Exported macro ------------------------------------------------------------*/
 /* Exported functions ------------------------------------------------------- */
-void MX_USB1_OTG_HS_PCD_Init(void);
-void Error_Handler(void);
-void SystemClock_Config(void);
 void SystemClock_Config_ResetClocks(void);
 void SystemClock_Config_HSE(void);
 void SystemClock_Config_HSI_no_overdrive(void);

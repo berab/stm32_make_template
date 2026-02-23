@@ -22,16 +22,10 @@
 #include "stm32n6xx_hal.h"
 #include "stm32n6xx_it.h"
 
-#if defined(USE_USB_CDC_CLASS)
-#include "app_usbx_device.h"
-#endif
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
-#if defined(USE_USB_CDC_CLASS)
-extern PCD_HandleTypeDef hpcd_USB1_OTG_HS;
-#endif
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
 
@@ -155,24 +149,6 @@ void SysTick_Handler(void)
 {
   HAL_IncTick();
 }
-
-#if defined(USE_USB_CDC_CLASS)
-/**
-* @brief  This function handles USB-On-The-Go HS global interrupt interrupt.
-* @param  None
-* @retval None
-*/
-void USB1_OTG_HS_IRQHandler(void)
-{
-  /* USER CODE BEGIN OTG_HS_IRQHandler 0 */
-
-  /* USER CODE END OTG_HS_IRQHandler 0 */
-  HAL_PCD_IRQHandler(&hpcd_USB1_OTG_HS);
-  /* USER CODE BEGIN OTG_HS_IRQHandler 1 */
-  
-  /* USER CODE END OTG_HS_IRQHandler 1 */
-}
-#endif
   
 /******************************************************************************/
 /*                 STM32N6xx Peripherals Interrupt Handlers                   */

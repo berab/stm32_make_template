@@ -47,9 +47,6 @@ void UART_Config(void);
 // Configures the NPU: Activates clocks, activate cache and setup AXI bus Master/Slave
 void NPU_Config(void);
 
-// Configurares the USB RIF
-void USB_RIF_Config(void);
-
 // Configures the RISAFs: Everything that is used is set to "passthrough"
 void RISAF_Config(void);
 

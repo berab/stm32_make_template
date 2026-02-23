@@ -4,12 +4,12 @@
 # Recursive wildcard: returns all files matching a given pattern
 # $(call rwildcard,$(BUILD_DIR),*.d) -> returns a list of files in $(BUILD_DIR) matching the pattern *.d
 rwildcard=$(foreach d,$(wildcard $(1:=/*)),$(call rwildcard,$d,$2) $(filter $(subst *,%,$2),$d))
- 
+
 ######################################
 # target
 ######################################
 TARGET = Project
-# Build configs are either N6-DK (default) or N6-DK-legacy, N6-Nucleo
+# Build configs are either N6-DK (default) or N6-Nucleo
 BUILD_CONF ?= N6-Nucleo
 # Generate lst files with gcc (set it to a value to generate listings)
 GENERATE_LISTINGS=
@@ -18,13 +18,6 @@ GENERATE_LISTINGS=
 # building variables
 ######################################
 OPT = -Os -g3
-
-ifeq ($(SHORT_ENUM),y)
-OPT += -fshort-enums
-else ifeq ($(SHORT_ENUM),n)
-# This option will generate link-time warnings with most versions of gcc -> use -Wl,--no-enum-size-warning if needed... 
-OPT += -fno-short-enums
-endif
 
 #######################################
 # paths
@@ -48,35 +41,24 @@ NUCLEO_DRIVER_PATH = $(BSP_PATH)/STM32N6xx_Nucleo
 # source
 ######################################
 # C sources
+# 
 VALIDATION_SOURCES += $(MIDDLEWARES_PATH)/AI/Validation/Src/aiPbIO.c
 VALIDATION_SOURCES += $(MIDDLEWARES_PATH)/AI/Validation/Src/aiPbMemRWServices.c
 VALIDATION_SOURCES += $(MIDDLEWARES_PATH)/AI/Validation/Src/aiPbMgr.c
 VALIDATION_SOURCES += $(MIDDLEWARES_PATH)/AI/Misc/Src/aiTestHelper.c
 VALIDATION_SOURCES += $(MIDDLEWARES_PATH)/AI/Misc/Src/aiTestUtility.c
+VALIDATION_SOURCES += $(MIDDLEWARES_PATH)/AI/Validation/Src/aiValidation.c
 VALIDATION_SOURCES += $(MIDDLEWARES_PATH)/AI/Misc/Src/ai_device_adaptor.c
+# VALIDATION_SOURCES += $(VALIDATION_PATH)/app_x-cube-ai.c
 VALIDATION_SOURCES += $(MIDDLEWARES_PATH)/AI/Misc/Src/lc_print.c
+VALIDATION_SOURCES += $(VALIDATION_PATH)/network.c
+VALIDATION_SOURCES += $(VALIDATION_PATH)/network_data.c
+VALIDATION_SOURCES += $(VALIDATION_PATH)/network_data_params.c
 VALIDATION_SOURCES += $(MIDDLEWARES_PATH)/AI/Validation/Src/pb_common.c
 VALIDATION_SOURCES += $(MIDDLEWARES_PATH)/AI/Validation/Src/pb_decode.c
 VALIDATION_SOURCES += $(MIDDLEWARES_PATH)/AI/Validation/Src/pb_encode.c
 VALIDATION_SOURCES += $(MIDDLEWARES_PATH)/AI/Validation/Src/stm32msg.pb.c
-VALIDATION_SOURCES += $(VALIDATION_PATH)/network.c
-
-ATON_SOURCES += $(ATON_RT_PATH)/ll_aton.c
-ATON_SOURCES += $(ATON_RT_PATH)/ll_aton_cipher.c
-ATON_SOURCES += $(ATON_RT_PATH)/ll_aton_dbgtrc.c
-ATON_SOURCES += $(ATON_RT_PATH)/ll_aton_debug.c
-ATON_SOURCES += $(ATON_RT_PATH)/ll_aton_lib.c
-ATON_SOURCES += $(ATON_RT_PATH)/ll_aton_lib_sw_operators.c
-ATON_SOURCES += $(ATON_RT_PATH)/ll_aton_rt_main.c
-ATON_SOURCES += $(ATON_RT_PATH)/ll_aton_runtime.c
-ATON_SOURCES += $(ATON_RT_PATH)/ll_aton_util.c
-ATON_SOURCES += $(ATON_RT_PATH)/ll_sw_float.c
-ATON_SOURCES += $(ATON_RT_PATH)/ll_sw_integer.c
-ATON_SOURCES += $(ATON_RT_PATH)/ecloader.c
-ATON_SOURCES += $(MIDDLEWARES_PATH)/AI/Validation/Src/ai_wrapper_ATON.c
-ATON_SOURCES += $(MIDDLEWARES_PATH)/AI/Validation/Src/aiValidation_ATON.c
-ATON_SOURCES += $(MIDDLEWARES_PATH)/AI/Validation/Src/ai_io_buffers_ATON.c
-
+VALIDATION_SOURCES += $(MIDDLEWARES_PATH)/AI/Misc/Src/syscalls.c
 DRIVER_SOURCES += $(CMSIS_PATH)/Device/ST/STM32N6xx/Source/Templates/system_stm32n6xx_fsbl.c
 DRIVER_SOURCES += $(N6_DRIVER_PATH)/Src/stm32n6xx_hal.c
 DRIVER_SOURCES += $(N6_DRIVER_PATH)/Src/stm32n6xx_hal_bsec.c
@@ -96,19 +78,34 @@ DRIVER_SOURCES += $(N6_DRIVER_PATH)/Src/stm32n6xx_hal_xspi.c
 #DRIVER_SOURCES += $(wildcard $(CMSIS_PATH)/DSP/Source/SupportFunctions/*.c)
 
 # EndOfCMSIS #
-APP_PATH = $(CORE_PATH)/Src
-APP_SOURCES += $(APP_PATH)/main.c
-APP_SOURCES += $(APP_PATH)/stm32n6xx_it.c
-APP_SOURCES += $(APP_PATH)/md5.c
-APP_SOURCES += $(APP_PATH)/system_clock_config.c
-APP_SOURCES += $(APP_PATH)/misc_toolbox.c
-APP_SOURCES += $(MIDDLEWARES_PATH)/AI/Npu/Devices/STM32N6xx/npu_cache.c
+APP_SOURCES += $(CORE_PATH)/Src/main.c
+APP_SOURCES += $(CORE_PATH)/Src/stm32n6xx_it.c
+APP_SOURCES += $(CORE_PATH)/Src/md5.c
+APP_SOURCES += $(CORE_PATH)/Src/system_clock_config.c
+APP_SOURCES += $(CORE_PATH)/Src/misc_toolbox.c
 APP_SOURCES += $(MIDDLEWARES_PATH)/AI/Npu/Devices/STM32N6xx/mcu_cache.c
-APP_SOURCES += $(APP_PATH)/sysmem.c
-APP_SOURCES += $(MIDDLEWARES_PATH)/AI/Misc/Src/syscalls.c
+#C_SOURCES += $(CORE_PATH)/Src/sysmem.c
+C_SOURCES += $(APP_SOURCES)
+C_SOURCES += $(VALIDATION_SOURCES)
+C_SOURCES += $(ATONN_SOURCES)
+C_SOURCES += $(DRIVER_SOURCES)
+
+
+#C_SOURCES += Src/check_malloc.c
+#C_SOURCES += Src/stm32n6xx_hal_msp.c
+#C_SOURCES += Src/system_stm32n6xx_s.c
+#C_SOURCES += Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_cortex.c
+#C_SOURCES += Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_pwr.c
+#C_SOURCES += Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_pwr_ex.c
+#C_SOURCES += Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_rcc.c
+#C_SOURCES += Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_rcc_ex.c
+#C_SOURCES += Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal.c
+#C_SOURCES += Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_uart.c
+#C_SOURCES += Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_gpio.c
 
 # ASM sources
 ASM_SOURCES += ./startup_stm32n657xx.s
+
 
 #######################################
 # binaries
@@ -145,17 +142,11 @@ CFLAGS_OTHERS = -std=c11
 
 # C defines
 C_DEFS += -DSTM32N657xx
+
 C_DEFS += -DUSE_FULL_ASSERT
 C_DEFS += -DUSE_FULL_LL_DRIVER
 C_DEFS += -DUSER_VECT_TAB_ADDRESS
 C_DEFS += -DVECT_TAB_SRAM
-C_DEFS += -DLL_ATON_DUMP_DEBUG_API
-C_DEFS += -DLL_ATON_PLATFORM=LL_ATON_PLAT_STM32N6
-C_DEFS += -DLL_ATON_OSAL=LL_ATON_OSAL_BARE_METAL
-C_DEFS += -DLL_ATON_RT_MODE=LL_ATON_RT_ASYNC
-C_DEFS += -DLL_ATON_SW_FALLBACK
-C_DEFS += -DLL_ATON_EB_DBG_INFO
-C_DEFS += -DLL_ATON_DBG_BUFFER_INFO_EXCLUDED=1
 
 # C includes
 C_INCLUDES += -I$(CMSIS_PATH)/Core/Include
@@ -164,14 +155,16 @@ C_INCLUDES += -I$(CMSIS_PATH)/Device/ST/STM32N6xx/Include/Templates
 C_INCLUDES += -I$(CMSIS_PATH)/DSP/Include
 C_INCLUDES += -I$(N6_DRIVER_PATH)/Inc
 C_INCLUDES += -I$(CORE_PATH)/Inc
-C_INCLUDES += -I$(ATON_PATH)
-C_INCLUDES += -I$(ATON_RT_PATH)
-C_INCLUDES += -I$(MIDDLEWARES_PATH)/AI/Inc
+C_INCLUDES += -I$(ATONN_PATH)
+C_INCLUDES += -I$(ATONN_RT_PATH)
 C_INCLUDES += -I$(VALIDATION_PATH)
+C_INCLUDES += -I$(VALIDATION_PATH)/..
+C_INCLUDES += -I$(VALIDATION_PATH)/../Target
 C_INCLUDES += -I$(MIDDLEWARES_PATH)/AI/Npu/Devices/STM32N6xx
 C_INCLUDES += -I$(MIDDLEWARES_PATH)/AI/Inc
 C_INCLUDES += -I$(MIDDLEWARES_PATH)/AI/Misc/Inc
 C_INCLUDES += -I$(MIDDLEWARES_PATH)/AI/Validation/Inc
+
 
 # DEPENDING ON THE TARGET BUILD, add extra files/defines:
 ifeq ($(BUILD_CONF),N6-DK-legacy)
@@ -180,19 +173,6 @@ else ifeq ($(BUILD_CONF),N6-Nucleo)
 -include mk/N6-Nucleo.mk
 else ifeq ($(BUILD_CONF),N6-DK)
 -include mk/N6-DK.mk
-else ifeq ($(BUILD_CONF),N6-DK-RELOC)
--include mk/N6-DK.mk
--include mk/reloc.mk
-else ifeq ($(BUILD_CONF),N6-DK-USB)
--include mk/N6-DK.mk
--include mk/USBx.mk
-else ifeq ($(BUILD_CONF),N6-DK-USB-RELOC)
--include mk/N6-DK.mk
--include mk/USBx.mk
--include mk/reloc.mk
-else ifeq ($(BUILD_CONF),N6-Nucleo-USB)
--include mk/N6-Nucleo.mk
--include mk/USBx.mk
 else
 $(error Please use a known build configuration (N6-DK, N6-Nucleo, ...))
 endif
@@ -206,38 +186,35 @@ CFLAGS = $(CFLAGS_OTHERS) $(MCU) $(C_DEFS) $(C_INCLUDES) $(OPT) -Wall -fdata-sec
 CFLAGS += -MMD -MP -MF"$(@:%.o=%.d)"
 
 #######################################
+# LDFLAGS
+
+#######################################
 # link script
 LDSCRIPT = ./STM32N657xx.ld
 
-# For relocatable builds, a different linker script is to be used (to give more space available to install models)
-RELOC_BUILDS=N6-DK-RELOC N6-DK-USB-RELOC
-ifneq ($(filter $(RELOC_BUILDS),$(BUILD_CONF)),)
-LDSCRIPT = ./STM32N657xx-reloc.ld
-endif
-
 LDFLAGS_OTHERS = -Wl,--wrap=malloc --verbose
+
 
 # libraries
 LIBS = -lc -lm -lnosys -l:NetworkRuntime1100_CM55_GCC.a
-LIBDIR = $(AICORE_PATH)/Middlewares/ST/AI/Lib/GCC/ARMCortexM55
+LIBDIR = $(MIDDLEWARES_PATH)/AI/Lib/GCC/ARMCortexM55
 LDFLAGS = $(MCU) -specs=nano.specs -T$(LDSCRIPT) -L$(LIBDIR) $(LIBS) $(LDFLAGS_OTHERS) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref -Wl,--gc-sections
 # Uncomment to enable %f formatted output
 # LDFLAGS += -u _printf_float
 LDFLAGS += -Wl,--print-memory-usage
 
 #######################################
-# build the application into BUILD_DIR (all .o end up in a directory based on their "category")
+# build the application into BUILD_DIR (all .o in build dir with same structure as in original tree)
 #######################################
+
 OBJECTS += $(addprefix $(BUILD_DIR)/,$(notdir $(ASM_SOURCES_S:.S=.o)))
 
 APP_OBJ = $(addprefix $(BUILD_DIR)/app/,$(addsuffix .o,$(basename $(notdir $(APP_SOURCES)))))
 DRIVER_OBJ = $(addprefix $(BUILD_DIR)/drivers/,$(addsuffix .o,$(basename $(notdir $(DRIVER_SOURCES)))))
-ATON_OBJ = $(addprefix $(BUILD_DIR)/aton/,$(addsuffix .o,$(basename $(notdir $(ATON_SOURCES)))))
 VALIDATION_OBJ = $(addprefix $(BUILD_DIR)/validation/,$(addsuffix .o,$(basename $(notdir $(VALIDATION_SOURCES)))))
-USB_OBJ = $(addprefix $(BUILD_DIR)/usb/,$(addsuffix .o,$(basename $(notdir $(USB_SOURCES)))))
 ASM_OBJ = $(addprefix $(BUILD_DIR)/asm/,$(addsuffix .o,$(basename $(notdir $(ASM_SOURCES)))))
 
-OBJECTS+=$(APP_OBJ) $(DRIVER_OBJ) $(ATON_OBJ) $(VALIDATION_OBJ) $(ASM_OBJ) $(USB_OBJ)
+OBJECTS+=$(APP_OBJ) $(DRIVER_OBJ) $(VALIDATION_OBJ) $(ASM_OBJ)
 
 ## Function to "pretty"-print steps in the logfile - 1 argument=string to print
 define PRINT_STEP
@@ -285,9 +262,7 @@ all: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET
 # Using seq <start> <step> <end> to generate the list of indices --step is mandatory on some flavors of seq (eg macOS)
 $(foreach i,$(shell seq 1 1 $(words $(APP_SOURCES))),$(eval $(call make_obj_c_rule,$(word $(i),$(APP_OBJ)),$(word $(i),$(APP_SOURCES)))))
 $(foreach i,$(shell seq 1 1 $(words $(DRIVER_SOURCES))),$(eval $(call make_obj_c_rule,$(word $(i),$(DRIVER_OBJ)),$(word $(i),$(DRIVER_SOURCES)))))
-$(foreach i,$(shell seq 1 1 $(words $(ATON_SOURCES))),$(eval $(call make_obj_c_rule,$(word $(i),$(ATON_OBJ)),$(word $(i),$(ATON_SOURCES)))))
 $(foreach i,$(shell seq 1 1 $(words $(VALIDATION_SOURCES))),$(eval $(call make_obj_c_rule,$(word $(i),$(VALIDATION_OBJ)),$(word $(i),$(VALIDATION_SOURCES)))))
-$(foreach i,$(shell seq 1 1 $(words $(USB_SOURCES))),$(eval $(call make_obj_c_rule,$(word $(i),$(USB_OBJ)),$(word $(i),$(USB_SOURCES)))))
 $(foreach i,$(shell seq 1 1 $(words $(ASM_SOURCES))),$(eval $(call make_obj_asm_rule,$(word $(i),$(ASM_OBJ)),$(word $(i),$(ASM_SOURCES)))))
 
 $(BUILD_DIR)/%.o: %.S Makefile | $(BUILD_DIR)
@@ -328,14 +303,11 @@ test:
 	@echo
 	@echo  DRIVER_SOURCES = $(DRIVER_OBJ)
 	@echo
-	@echo  ATON_SOURCES = $(ATON_OBJ)
-	@echo
 	@echo  ASM_SOURCES = $(ASM_SOURCES)
-	@echo
-	@echo  USB_SOURCES = $(USB_SOURCES)
 	@echo
 	@echo  C_SOURCES = $(C_SOURCES)
 #######################################
 # dependencies
 #######################################
 -include $(call rwildcard,$(BUILD_DIR),*.d)
+

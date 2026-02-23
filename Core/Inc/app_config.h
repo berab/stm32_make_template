@@ -30,15 +30,6 @@
 #define NO_OVD_CLK400                           // When no overdrive: use clocks all @ 400MHz (CPU/NIC/NOC/NPU)
 
 /* UART usage/configuration */
-#define USE_UART_BAUDRATE               921600 // 5529600 // 3686400  // 921600          /* 921600 115200 */
-
-/* RELOC configuration */
-#ifndef USE_RELOC_MODE
-#define USE_RELOC_MODE                  0
-#endif /* !USE_RELOC_MODE */
-
-
-#define USE_USB_PACKET_SIZE             382 // max size works on MAC, but can be increase to 4094 on Windows and Linux
+#define USE_UART_BAUDRATE               921600          /* 921600 115200 */
 
 #endif /* __APP_CONFIG_H__ */
-
