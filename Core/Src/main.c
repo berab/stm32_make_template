@@ -1,12 +1,12 @@
-/* USER CODE BEGIN Header */
-/**
+  /**
   ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
+  * @file    main.c
+  * @author  GPM/AIS Application Team
+  * @brief   Entry point for AI Validation application
   ******************************************************************************
   * @attention
   *
-  * Copyright (c) 2026 STMicroelectronics.
+  * Copyright (c) 2023 STMicroelectronics.
   * All rights reserved.
   *
   * This software is licensed under terms that can be found in the LICENSE file
@@ -15,272 +15,129 @@
   *
   ******************************************************************************
   */
-/* USER CODE END Header */
+
 /* Includes ------------------------------------------------------------------*/
+
+#include <stdio.h>
+#include <string.h>
+
+#include "app_config.h"
+
+#include "mcu_cache.h"
+
 #include "main.h"
+#include "misc_toolbox.h"
 
-/* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */
-
-/* USER CODE END Includes */
+#include "aiValidation.h"
+#if defined(USE_USB_CDC_CLASS)
+#include "app_usbx_device.h"
+#include "ux_api.h"
+#endif
 
 /* Private typedef -----------------------------------------------------------*/
-/* USER CODE BEGIN PTD */
-
-/* USER CODE END PTD */
-
 /* Private define ------------------------------------------------------------*/
-/* USER CODE BEGIN PD */
-
-/* USER CODE END PD */
-
 /* Private macro -------------------------------------------------------------*/
-/* USER CODE BEGIN PM */
-
-/* USER CODE END PM */
-
 /* Private variables ---------------------------------------------------------*/
-
-COM_InitTypeDef BspCOMInit;
-
-/* USER CODE BEGIN PV */
-
-/* USER CODE END PV */
-
+#if defined(USE_USB_CDC_CLASS)
+PCD_HandleTypeDef hpcd_USB1_OTG_HS;
+extern UX_SLAVE_CLASS_CDC_ACM  *cdc_acm;
+#endif
 /* Private function prototypes -----------------------------------------------*/
-void SystemClock_Config(void);
-static void MX_GPIO_Init(void);
-/* USER CODE BEGIN PFP */
-
-/* USER CODE END PFP */
-
-/* Private user code ---------------------------------------------------------*/
-/* USER CODE BEGIN 0 */
-
-/* USER CODE END 0 */
-
-/**
-  * @brief  The application entry point.
-  * @retval int
-  */
+/* Private functions ---------------------------------------------------------*/
+/* Main function -------------------------------------------------------------*/
 int main(void)
 {
-
-  /* USER CODE BEGIN 1 */
-
-  /* USER CODE END 1 */
-
-  /* MCU Configuration--------------------------------------------------------*/
+  // Set VTOR to proper address and ack possible pending IRQs
+  set_vector_table_addr();
+  
   HAL_Init();
+  
+  // Ensure proper clocking after a reset / after exiting the bootloader
+  SystemClock_Config_ResetClocks();
+  
+  system_init_post();
 
-  /* USER CODE BEGIN Init */
+#if USE_MCU_ICACHE
+  SCB_EnableICache();
+#else
+  SCB_DisableICache();
+#endif
 
-  /* USER CODE END Init */
-
+#if !USE_MCU_DCACHE_ONLY_FOR_INFERENCE
+#if USE_MCU_DCACHE
+  SCB_EnableDCache();
+#else
+  SCB_DisableDCache();
+#endif
+#endif
+     
   /* Configure the system clock */
-  SystemClock_Config();
+#if USE_OVERDRIVE
+  upscale_vddcore_level();
+  SystemClock_Config_HSI_overdrive();
+#else
+#ifdef NO_OVD_CLK400
+  SystemClock_Config_HSI_400();
+#else
+  SystemClock_Config_HSI_no_overdrive();
+#endif
+#endif
 
-  /* USER CODE BEGIN SysInit */
+  // Force fusing of the OTP when using a Nucleo/DK board only
+#if (defined(USE_STM32N6xx_NUCLEO) || defined(USE_STM32N6570_DK))
+  fuse_vddio();
+#endif
+  
+  /* Clear SLEEPDEEP bit of Cortex System Control Register */
+  CLEAR_BIT(SCB->SCR, SCB_SCR_SLEEPDEEP_Msk);
 
-  /* USER CODE END SysInit */
-
-  /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-  /* USER CODE BEGIN 2 */
-
-  /* USER CODE END 2 */
-
-  /* Initialize leds */
-  BSP_LED_Init(LED_BLUE);
-  BSP_LED_Init(LED_RED);
-  BSP_LED_Init(LED_GREEN);
-
-  /* Initialize USER push-button, will be used to trigger an interrupt each time it's pressed.*/
-  BSP_PB_Init(BUTTON_USER, BUTTON_MODE_EXTI);
-
-  /* Initialize COM1 port (115200, 8 bits (7-bit data + 1 stop bit), no parity */
-  BspCOMInit.BaudRate   = 115200;
-  BspCOMInit.WordLength = COM_WORDLENGTH_8B;
-  BspCOMInit.StopBits   = COM_STOPBITS_1;
-  BspCOMInit.Parity     = COM_PARITY_NONE;
-  BspCOMInit.HwFlowCtl  = COM_HWCONTROL_NONE;
-  if (BSP_COM_Init(COM1, &BspCOMInit) != BSP_ERROR_NONE)
+  UART_Config();
+#if defined(USE_USB_CDC_CLASS)
+  MX_USBX_Device_Init();
+  USB_RIF_Config();
+#endif
+  NPU_Config();
+  
+#if defined(USE_EXTERNAL_MEMORY_DEVICES) && USE_EXTERNAL_MEMORY_DEVICES == 1
+  BSP_XSPI_NOR_Init_t Flash;
+  
+#if (NUCLEO_N6_CONFIG == 0)
+  BSP_XSPI_RAM_Init(0);
+  BSP_XSPI_RAM_EnableMemoryMappedMode(0);
+  /* Configure the memory in octal DTR */
+  Flash.InterfaceMode = MX66UW1G45G_OPI_MODE;
+  Flash.TransferRate = MX66UW1G45G_DTR_TRANSFER;
+#else
+  Flash.InterfaceMode = MX25UM51245G_OPI_MODE;
+  Flash.TransferRate = MX25UM51245G_DTR_TRANSFER;
+#endif
+  
+  if(BSP_XSPI_NOR_Init(0, &Flash) != BSP_ERROR_NONE)
   {
-    Error_Handler();
+        __BKPT(0);
   }
+  BSP_XSPI_NOR_EnableMemoryMappedMode(0);
 
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
-  while (1)
-  {
+#endif 
+  
+  RISAF_Config();
 
-    /* USER CODE END WHILE */
+/* USED FOR TESTING ACCESS TO EXTERNAL MEMORIES */  
+#if defined(USE_EXTERNAL_MEMORY_DEVICES) && USE_EXTERNAL_MEMORY_DEVICES == 1
+  uint32_t x[20];
+  memcpy((uint32_t*)x, (uint32_t*)0x70000000, 20*4);
+#if (NUCLEO_N6_CONFIG == 0)
+  memset((uint8_t *)0x90000000, 0xAA, 16 * 1024 *1024);
+  memcpy((uint32_t*)x, (uint32_t*)0x90000000, 20*4);
+#endif
+#endif
+  
+  set_clk_sleep_mode();
+  
+  aiValidationInit();
+  aiValidationProcess();
 
-    /* USER CODE BEGIN 3 */
-  }
-  /* USER CODE END 3 */
 }
-/* USER CODE BEGIN CLK 1 */
-/* USER CODE END CLK 1 */
-
-/**
-  * @brief System Clock Configuration
-  * @retval None
-  */
-void SystemClock_Config(void)
-{
-  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
-  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
-
-  /** Configure the System Power Supply
-  */
-  if (HAL_PWREx_ConfigSupply(PWR_EXTERNAL_SOURCE_SUPPLY) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure the main internal regulator output voltage
-  */
-  if (HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /* Enable HSI */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSIDiv = RCC_HSI_DIV1;
-  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.PLL1.PLLState = RCC_PLL_NONE;
-  RCC_OscInitStruct.PLL2.PLLState = RCC_PLL_NONE;
-  RCC_OscInitStruct.PLL3.PLLState = RCC_PLL_NONE;
-  RCC_OscInitStruct.PLL4.PLLState = RCC_PLL_NONE;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Get current CPU/System buses clocks configuration and if necessary switch
- to intermediate HSI clock to ensure target clock can be set
-  */
-  HAL_RCC_GetClockConfig(&RCC_ClkInitStruct);
-  if ((RCC_ClkInitStruct.CPUCLKSource == RCC_CPUCLKSOURCE_IC1) ||
-     (RCC_ClkInitStruct.SYSCLKSource == RCC_SYSCLKSOURCE_IC2_IC6_IC11))
-  {
-    RCC_ClkInitStruct.ClockType = (RCC_CLOCKTYPE_CPUCLK | RCC_CLOCKTYPE_SYSCLK);
-    RCC_ClkInitStruct.CPUCLKSource = RCC_CPUCLKSOURCE_HSI;
-    RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
-    if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct) != HAL_OK)
-    {
-      /* Initialization Error */
-      Error_Handler();
-    }
-  }
-
-  /** Initializes the RCC Oscillators according to the specified parameters
-  * in the RCC_OscInitTypeDef structure.
-  */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_NONE;
-  RCC_OscInitStruct.PLL1.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL1.PLLSource = RCC_PLLSOURCE_HSI;
-  RCC_OscInitStruct.PLL1.PLLM = 4;
-  RCC_OscInitStruct.PLL1.PLLN = 75;
-  RCC_OscInitStruct.PLL1.PLLFractional = 0;
-  RCC_OscInitStruct.PLL1.PLLP1 = 1;
-  RCC_OscInitStruct.PLL1.PLLP2 = 1;
-  RCC_OscInitStruct.PLL2.PLLState = RCC_PLL_NONE;
-  RCC_OscInitStruct.PLL3.PLLState = RCC_PLL_NONE;
-  RCC_OscInitStruct.PLL4.PLLState = RCC_PLL_NONE;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Initializes the CPU, AHB and APB buses clocks
-  */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_CPUCLK|RCC_CLOCKTYPE_HCLK
-                              |RCC_CLOCKTYPE_SYSCLK|RCC_CLOCKTYPE_PCLK1
-                              |RCC_CLOCKTYPE_PCLK2|RCC_CLOCKTYPE_PCLK5
-                              |RCC_CLOCKTYPE_PCLK4;
-  RCC_ClkInitStruct.CPUCLKSource = RCC_CPUCLKSOURCE_IC1;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_IC2_IC6_IC11;
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_HCLK_DIV2;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_APB1_DIV1;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_APB2_DIV1;
-  RCC_ClkInitStruct.APB4CLKDivider = RCC_APB4_DIV1;
-  RCC_ClkInitStruct.APB5CLKDivider = RCC_APB5_DIV1;
-  RCC_ClkInitStruct.IC1Selection.ClockSelection = RCC_ICCLKSOURCE_PLL1;
-  RCC_ClkInitStruct.IC1Selection.ClockDivider = 2;
-  RCC_ClkInitStruct.IC2Selection.ClockSelection = RCC_ICCLKSOURCE_PLL1;
-  RCC_ClkInitStruct.IC2Selection.ClockDivider = 3;
-  RCC_ClkInitStruct.IC6Selection.ClockSelection = RCC_ICCLKSOURCE_PLL1;
-  RCC_ClkInitStruct.IC6Selection.ClockDivider = 4;
-  RCC_ClkInitStruct.IC11Selection.ClockSelection = RCC_ICCLKSOURCE_PLL1;
-  RCC_ClkInitStruct.IC11Selection.ClockDivider = 3;
-
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct) != HAL_OK)
-  {
-    Error_Handler();
-  }
-}
-
-/**
-  * @brief GPIO Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_GPIO_Init(void)
-{
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
-  /* USER CODE BEGIN MX_GPIO_Init_1 */
-
-  /* USER CODE END MX_GPIO_Init_1 */
-
-  /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOC_CLK_ENABLE();
-  __HAL_RCC_GPIOH_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
-  __HAL_RCC_GPIOE_CLK_ENABLE();
-  __HAL_RCC_GPIOA_CLK_ENABLE();
-
-  /*Configure GPIO pin : I2C1_SDA_Pin */
-  GPIO_InitStruct.Pin = I2C1_SDA_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;
-  HAL_GPIO_Init(I2C1_SDA_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : I2CA_SCL_Pin */
-  GPIO_InitStruct.Pin = I2CA_SCL_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;
-  HAL_GPIO_Init(I2CA_SCL_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : I2C2_SDA_Pin I2C2_SCL_Pin */
-  GPIO_InitStruct.Pin = I2C2_SDA_Pin|I2C2_SCL_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  GPIO_InitStruct.Alternate = GPIO_AF4_I2C2;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : PA10 UCPD1_VSENSE_Pin */
-  GPIO_InitStruct.Pin = GPIO_PIN_10|UCPD1_VSENSE_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-  /* USER CODE BEGIN MX_GPIO_Init_2 */
-
-  /* USER CODE END MX_GPIO_Init_2 */
-}
-
-/* USER CODE BEGIN 4 */
-
-/* USER CODE END 4 */
 
 /**
   * @brief  This function is executed in case of error occurrence.
@@ -290,13 +147,144 @@ void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
-  __disable_irq();
   while (1)
   {
   }
   /* USER CODE END Error_Handler_Debug */
 }
-#ifdef USE_FULL_ASSERT
+
+#if defined(USE_USB_CDC_CLASS)
+/**
+  * @brief USB_OTG_HS Initialization Function
+  * @param None
+  * @retval None
+  */
+void MX_USB1_OTG_HS_PCD_Init(void)
+{
+
+  /* USER CODE BEGIN USB1_OTG_HS_Init 0 */
+
+  /* USER CODE END USB1_OTG_HS_Init 0 */
+
+  /* USER CODE BEGIN USB1_OTG_HS_Init 1 */
+
+  memset(&hpcd_USB1_OTG_HS, 0x0, sizeof(PCD_HandleTypeDef));
+
+  /* USER CODE END USB1_OTG_HS_Init 1 */
+  hpcd_USB1_OTG_HS.Instance = USB1_OTG_HS;
+  hpcd_USB1_OTG_HS.Init.dev_endpoints = 9;
+  hpcd_USB1_OTG_HS.Init.speed = PCD_SPEED_HIGH;
+  hpcd_USB1_OTG_HS.Init.dma_enable = DISABLE;
+  hpcd_USB1_OTG_HS.Init.phy_itface = USB_OTG_HS_EMBEDDED_PHY;
+  hpcd_USB1_OTG_HS.Init.Sof_enable = DISABLE;
+  hpcd_USB1_OTG_HS.Init.low_power_enable = DISABLE;
+  hpcd_USB1_OTG_HS.Init.lpm_enable = DISABLE;
+  hpcd_USB1_OTG_HS.Init.vbus_sensing_enable = DISABLE;
+  hpcd_USB1_OTG_HS.Init.use_dedicated_ep1 = DISABLE;
+  hpcd_USB1_OTG_HS.Init.use_external_vbus = DISABLE;
+  if (HAL_PCD_Init(&hpcd_USB1_OTG_HS) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USB1_OTG_HS_Init 2 */
+
+  /* USER CODE END USB1_OTG_HS_Init 2 */
+}
+#endif
+
+/**
+* @brief PCD MSP Initialization
+* This function configures the hardware resources used in this example
+* @param hhcd: PCD handle pointer
+* @retval None
+*/
+void HAL_PCD_MspInit(PCD_HandleTypeDef* pcdHandle)
+{
+  if (pcdHandle->Instance==USB1_OTG_HS)
+  {
+    /* USER CODE BEGIN USB_OTG_HS_MspInit 0 */
+
+    /* USER CODE END USB_OTG_HS_MspInit 0 */
+    /* Enable VDDUSB */
+    __HAL_RCC_PWR_CLK_ENABLE();
+    HAL_PWREx_EnableVddUSBVMEN();
+    while(__HAL_PWR_GET_FLAG(PWR_FLAG_USB33RDY));
+    HAL_PWREx_EnableVddUSB();
+
+    /** Initializes the peripherals clock
+    */
+    RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
+    PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_USBOTGHS1;
+    PeriphClkInitStruct.UsbOtgHs1ClockSelection = RCC_USBOTGHS1CLKSOURCE_HSE_DIRECT;
+
+    if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
+    {
+      /* Initialization Error */
+      Error_Handler();
+    }
+
+    /** Set USB OTG HS PHY1 Reference Clock Source */
+    PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_USBPHY1;
+    PeriphClkInitStruct.UsbPhy1ClockSelection = RCC_USBPHY1REFCLKSOURCE_HSE_DIRECT;
+
+    if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
+    {
+      /* Initialization Error */
+      Error_Handler();
+    }
+
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+
+    LL_AHB5_GRP1_ForceReset(0x00800000);
+    __HAL_RCC_USB1_OTG_HS_FORCE_RESET();
+    __HAL_RCC_USB1_OTG_HS_PHY_FORCE_RESET();
+
+    LL_RCC_HSE_SelectHSEDiv2AsDiv2Clock();
+    LL_AHB5_GRP1_ReleaseReset(0x00800000);
+
+    /* Peripheral clock enable */
+    __HAL_RCC_USB1_OTG_HS_CLK_ENABLE();
+
+    /* Required few clock cycles before accessing USB PHY Controller Registers */
+    HAL_Delay(1);
+    
+    for (volatile uint32_t i = 0; i < 10; i++) {
+        __NOP(); // No Operation instruction to create a delay
+    }
+
+    USB1_HS_PHYC->USBPHYC_CR &= ~(0x7 << 0x4);
+
+    USB1_HS_PHYC->USBPHYC_CR |= (0x1 << 16) |
+                                (0x2 << 4)  |
+                                (0x1 << 2)  |
+                                 0x1U;
+
+    __HAL_RCC_USB1_OTG_HS_PHY_RELEASE_RESET();
+
+    /* Required few clock cycles before Releasing Reset */
+    HAL_Delay(1);
+
+    for (volatile uint32_t i = 0; i < 10; i++) {
+        __NOP(); // No Operation instruction to create a delay
+    }
+    
+    __HAL_RCC_USB1_OTG_HS_RELEASE_RESET();
+
+    /* Peripheral PHY clock enable */
+    __HAL_RCC_USB1_OTG_HS_PHY_CLK_ENABLE();
+
+    /* USB_OTG_HS interrupt Init */
+    HAL_NVIC_SetPriority(USB1_OTG_HS_IRQn, 7, 0);
+    HAL_NVIC_EnableIRQ(USB1_OTG_HS_IRQn);
+
+    /* USER CODE BEGIN USB_OTG_HS_MspInit 1 */
+
+    /* USER CODE END USB_OTG_HS_MspInit 1 */
+  }
+}
+
+#ifdef  USE_FULL_ASSERT
+
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.
@@ -304,11 +292,20 @@ void Error_Handler(void)
   * @param  line: assert_param error line source number
   * @retval None
   */
-void assert_failed(uint8_t *file, uint32_t line)
+void assert_failed(uint8_t* file, uint32_t line)
 {
-  /* USER CODE BEGIN 6 */
+  /* Prevent unused argument(s) compilation warning */
+  UNUSED(file);
+  UNUSED(line);
+
   /* User can add his own implementation to report the file name and line number,
      ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
-  /* USER CODE END 6 */
+  printf("FAIL on file %s on line %d\r\n", file, (int)line);
+  __BKPT(0);
+  /* Infinite loop */
+  while (1)
+  {
+  }
 }
-#endif /* USE_FULL_ASSERT */
+
+#endif  /* USE_FULL_ASSERT */

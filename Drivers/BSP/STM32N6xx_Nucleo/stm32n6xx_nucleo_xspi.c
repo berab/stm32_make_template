@@ -169,7 +169,7 @@ int32_t BSP_XSPI_NOR_Init(uint32_t Instance, BSP_XSPI_NOR_Init_t *Init)
 
       /* Fill config structure */
       xspi_init.ClockPrescaler = 3;
-      xspi_init.MemorySize     = (uint32_t)POSITION_VAL((uint32_t)pInfo.FlashSize) - 1U;
+      xspi_init.MemorySize     = (uint32_t)POSITION_VAL((uint32_t)pInfo.FlashSize);
       xspi_init.SampleShifting = HAL_XSPI_SAMPLE_SHIFT_NONE;
       xspi_init.TransferRate   = (uint32_t) Init->TransferRate;
 
@@ -282,7 +282,7 @@ __weak HAL_StatusTypeDef MX_XSPI_NOR_Init(XSPI_HandleTypeDef *hxspi, MX_XSPI_Ini
   hxspi->Init.ChipSelectBoundary      = 0;
 #if defined (OCTOSPI_DCR1_DLYBYP)
   hxspi->Init.DelayBlockBypass           = HAL_XSPI_DELAY_BLOCK_BYPASS;
-#endif /* OCTOSPI_DCR1_DLYBYP */
+#endif
 
   if (Init->TransferRate == (uint32_t) BSP_XSPI_NOR_DTR_TRANSFER)
   {

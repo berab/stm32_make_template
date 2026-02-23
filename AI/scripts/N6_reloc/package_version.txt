@@ -1,2 +1,0 @@
-name: Neural ART - Package for runtime loadable model
-version: 1.4.0
