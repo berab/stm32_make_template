@@ -25,7 +25,7 @@ SCRIPT = n6_loader.py
 MODEL_OUTPUT_DIR = st_ai_output
 VAL_DIR = AI/Projects/STM32N6570-DK/Applications/$(PROC)_Validation
 PROJECT_PATH = /home/kilic/workspace/embedded/stm/stm32n6/make_template_ai/AI/Projects/STM32N6570-DK/Applications/NPU_Validation
-SCRIPT_ARGS = --config $(SCRIPT_DIR)/config.json --build-config N6-Nucleo --network-file $(MODEL_DIR)/$(MODEL).onnx --project-path $(VAL_DIR)
+SCRIPT_ARGS = --config $(SCRIPT_DIR)/config.json --build-config N6-Nucleo --network-file $(MODEL_OUTPUT_DIR)/network.c --project-path $(VAL_DIR)
 AI_FLAGS = --st-neural-art
 ifeq ($(PROC), CM55)
 SCRIPT = cm55_loader.py
@@ -173,7 +173,7 @@ LIBDIR =
 LDFLAGS = $(MCU) -specs=nano.specs -T$(LDSCRIPT) $(LIBDIR) $(LIBS) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref -Wl,--gc-sections -Wl,--cmse-implib -Wl,--out-implib=./build/secure_nsclib.o
 
 # default action: build all
-all: $(MODEL_OUTPUT_DIR)
+all: $(MODEL_OUTPUT_DIR) run_script
 # all: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET).bin
 
 

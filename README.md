@@ -14,18 +14,14 @@ git submodule update --recursive
 - ONNX 6
 
 ## RUN
-### NPU model generation and validation
+To run on NPU:
 ```bash
-stedgeai generate -m mymodel.onnx --target stm32n6
-python ./AI/scripts/N6_scripts/n6_loader.py
-
+make clean all PROC=NPU
 ```
 
-### CM55 model generation and validation
+or on CM55:
 ```bash
-stedgeai generate -m mymodel.onnx --target stm32n6
-stedgeai generate -m mymodel.onnx --target stm32n6 --binary --address 0x71000000
-# stedgeai generate -m mymodel.onnx --target stm32n6 --memory-pool AI/Projects/STM32N6570-DK/Applications/CM55_Validation/mypool_N6.json --type onnx
+make clean all PROC=CM55
 ```
 
 ### Contact:
