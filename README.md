@@ -26,4 +26,3 @@ make clean all PROC=CM55
 
 ### Contact:
 beran.kilic@gmail.com
-
