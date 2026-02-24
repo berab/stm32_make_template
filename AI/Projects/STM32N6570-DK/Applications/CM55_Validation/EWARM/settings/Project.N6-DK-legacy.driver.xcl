@@ -1,0 +1,21 @@
+"--endian=little" 
+
+"--cpu=Cortex-M55" 
+
+"--cmse" 
+
+"--fpu=VFPv5_d16helium" 
+
+"-p" 
+
+"C:\Program Files\IAR Systems\Embedded Workbench 9.4\arm\config\debugger\ST\STM32N6xxx0.ddf" 
+
+"--semihosting" 
+
+"--device=STM32N6570-DK" 
+
+"--multicore_nr_of_cores=1" 
+
+
+
+

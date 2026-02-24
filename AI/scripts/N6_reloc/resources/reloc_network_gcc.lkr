@@ -1,0 +1,194 @@
+ /**
+ ******************************************************************************
+ * @file    reloc_network.lkr
+ * @author  MCD/AIS Team
+ * @brief   Relocatable network support
+ ******************************************************************************
+ * @attention
+ *
+ * <h2><center>&copy; Copyright (c) 2024 STMicroelectronics.
+ * All rights reserved.</center></h2>
+ *
+ * This software is licensed under terms that can be found in the LICENSE file in
+ * the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
+
+/*
+   Description:
+   
+   	This linker file is used to generate a relocatable elf. The addresses are fake.
+   	Only two main memory regions are requested:
+   		flash  to store txt/rodata/data/got/weights sections
+   		ram    to store initial data/got sections
+   		
+   	Header (+network_rt_init section) is used by the AI reloc run-time to install
+   	the post-processed elf file. Thanks to the ".rel" section (created by the
+   	post-process script), the "ram" (data section with absolute @) and "got" section
+   	are patched.
+   	
+   	Note: ".weights" section (i.e. network_data.c file is not and should be not included
+   	      in the generated elf file. It will be included during the generation of the 
+   	      final binay file by the post-process script.
+   	
+   History:
+    1.0: initial version
+
+*/
+
+MEMORY
+{
+    flash    (rx) : ORIGIN = 0x20000000,  LENGTH = 16M   /* code/txt memory */
+    ram      (rw) : ORIGIN = 0x40000000,  LENGTH = 16M   /* data/bss memory */
+    trash    (rw) : ORIGIN = 0xF0000000,  LENGTH = 256K  /* we throw this away soon after linking */
+    params_0 (rw) : ORIGIN = 0x80000000,  LENGTH = 128M  /* param/act memory */
+    params_1 (rw) : ORIGIN = 0x90000000,  LENGTH = 128M  /* param/act memory */
+}
+
+
+SECTIONS
+{
+    .flash (READONLY) : {
+        /***** start of struct ai_reloc_bin_hdr [see ll_aton_reloc_network.c] *****/
+        
+        /* binary format marker: 'NBIN' (LE) */
+        LONG(0x4E49424E)
+
+        /* version - flags */
+        KEEP(*(.network_flags)); 
+
+        /* things to install/load the network */
+        LONG(__data_start)
+        LONG(__data_end)
+        LONG(LOADADDR(.data))
+
+        LONG(__bss_start)
+        LONG(__bss_end)
+
+        /* things to run it */
+        LONG(__got_start)
+        LONG(__got_end)
+        LONG(__rel_start)
+        LONG(__rel_end)
+        LONG(__params_start)
+        LONG(0)
+
+        KEEP(*(.network_entries));  /* lib/network entries point */
+        
+        /***** end of struct ai_reloc_bin_hdr [see ll_aton_reloc_network.c] *****/
+
+        /* code */
+        . = ALIGN(4);
+        __text_start = ABSOLUTE(.);
+        *(.text) *(.text.*) ;
+        __text_end = ABSOLUTE(.);
+
+        /* rodata */
+        . = ALIGN(4);
+        __rodata_start = ABSOLUTE(.);
+        *(.rodata) *(.rodata.*) ;
+
+        . = ALIGN(8);        
+        __rodata_end = ABSOLUTE(.);
+
+    } > flash = 0xff
+
+    .data : {
+        . = ALIGN(4);
+        __data_start = ABSOLUTE(.);
+        __dso_handle = ABSOLUTE(__data_start);
+        *(.data);
+        *(.data.*);
+        KEEP(*(.network_rt_ctx));
+
+        __params_start = ABSOLUTE(.);
+        KEEP(*(.params_desc));
+        __params_end = ABSOLUTE(.);
+
+        . = ALIGN(4);
+        __data_end = ABSOLUTE(.);
+
+        . = ALIGN(4);
+        __init_array_start = ABSOLUTE(.);
+        KEEP(*(SORT(.init_array.*)))
+        KEEP(*(.init_array))
+        __init_array_end = ABSOLUTE(.);
+
+        . = ALIGN(4);
+        __fini_array_start = ABSOLUTE(.);
+        KEEP(*(SORT(.fini_array.*)))
+        KEEP(*(.fini_array))
+        __fini_array_end = ABSOLUTE(.);
+
+        . = ALIGN(4);
+        __got_start = ABSOLUTE(.);
+        *(.got) *(.got.*) ;
+        __got_end = ABSOLUTE(.);
+
+    } > ram AT > flash
+
+    .relocs : {
+        . = ALIGN(4);
+        /* relocs */
+        __rel_start = ABSOLUTE(.);
+        /* *(.rel) *(.rel.*) *(.rel.data.rel.local) */
+        __rel_end = ABSOLUTE(.);
+        . = ALIGN(4);
+    } > flash = 0xff
+
+    .params_0 : {
+        . = ALIGN(8);
+        KEEP(*(.const_ec_blob));
+        . = ALIGN(8);
+        KEEP(*(.params_0));
+        . = ALIGN(8);
+    } > params_0
+
+    .params_1 : {
+        . = ALIGN(8);
+        KEEP(*(.params_1));
+        . = ALIGN(8);
+    } > params_1
+
+    .dynsym : {
+        *(.dynsym); *(.dynsym.*);
+    } > flash = 0xff
+
+    .bss : {
+        . = ALIGN(4);
+        __bss_start = ABSOLUTE(.);
+        *(.bss) *(.bss.*) *(COMMON);
+        . = ALIGN(4);
+        __bss_end = ABSOLUTE(.);
+    } > ram
+
+    __data_data = LOADADDR(.data);
+
+    /* Remove information from the standard libraries */
+    /DISCARD/ :
+    {
+        libc.a ( * )
+        libm.a ( * )
+        libgcc.a ( * )
+    }
+
+    /DISCARD/ :
+    {
+        *(.note)
+        *(.debug_*)
+        *(.ARM.exidx*)
+    }
+  
+    .dynstr : {
+        *(.dynstr); *(.dynstr.*);
+    } > trash
+    .hash : {
+        *(.hash); *(.hash.*);
+    } > trash
+    .dynamic : {
+        *(.dynamic); *(.dynamic.*);
+    } > trash
+}
+

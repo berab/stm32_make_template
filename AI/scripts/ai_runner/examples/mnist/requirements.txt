@@ -1,0 +1,9 @@
+# to use ai_runner
+protobuf<3.21
+tqdm
+colorama
+pyserial
+
+# for train/test scripts
+tensorflow==2.15.1
+scikit-learn

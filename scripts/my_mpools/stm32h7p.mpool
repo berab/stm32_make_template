@@ -1,0 +1,84 @@
+{
+	"params": {
+	"param": [
+		{ "paramname": "max_onchip_sram_size", "value": "512", "magnitude": "KBYTES" }
+	]
+	},
+	"memory": {
+		"mem_file_prefix": "sysmem",
+		"mempools": [
+		{
+			"fname": "eFlash1",
+			"name":  "eFlash1",
+			"fformat": "FORMAT_RAW",
+			"prop": { "rights": "ACC_READ", "throughput": "MID", "latency": "MID", "byteWidth": 8, "freqRatio": 2, "read_power": 21.6, "write_power": 20.0 },
+			"offset": { "value": "0x08000000", "magnitude": "BYTES" },
+			"size":   { "value": "0", "magnitude": "MBYTES" }
+		},
+		{
+			"fname": "eFlash2",
+			"name":  "eFlash2",
+			"fformat": "FORMAT_RAW",
+			"prop": { "rights": "ACC_READ", "throughput": "MID", "latency": "MID", "byteWidth": 8, "freqRatio": 2, "read_power": 21.6, "write_power": 20.0 },
+			"offset": { "value": "0x08100000", "magnitude": "BYTES" },
+			"size":   { "value": "1", "magnitude": "MBYTES" }
+		},
+		{
+			"fname": "axiSRAM1",
+			"name":  "axiSRAM1",
+			"fformat": "FORMAT_RAW",
+			"prop": { "rights": "ACC_WRITE", "throughput": "HIGH", "latency": "LOW", "byteWidth": 8, "freqRatio": 2, "read_power": 21.6, "write_power": 20.0 },
+			"offset": { "value": "0x2FFB0000", "magnitude": "BYTES" },
+			"size":   { "value": "128", "magnitude": "KBYTES" }
+		},
+		{
+			"fname": "axiSRAM2",
+			"name":  "axiSRAM2",
+			"fformat": "FORMAT_RAW",
+			"prop": { "rights": "ACC_WRITE", "throughput": "HIGH", "latency": "LOW", "byteWidth": 8, "freqRatio": 2, "read_power": 21.6, "write_power": 20.0 },
+			"offset": { "value": "0x2FFD0000", "magnitude": "BYTES" },
+			"size":   { "value": "64", "magnitude": "KBYTES" }
+		},
+		{
+			"fname": "axiSRAM3",
+			"name":  "axiSRAM3",
+			"fformat": "FORMAT_RAW",
+			"prop": { "rights": "ACC_WRITE", "throughput": "HIGH", "latency": "LOW", "byteWidth": 8, "freqRatio": 2, "read_power": 21.6, "write_power": 20.0 },
+			"offset": { "value": "0x2FFE0000", "magnitude": "BYTES" },
+			"size":   { "value": "64", "magnitude": "KBYTES" }
+		},
+		{
+			"fname": "axiSRAM4",
+			"name":  "axiSRAM4",
+			"fformat": "FORMAT_RAW",
+			"prop": { "rights": "ACC_WRITE", "throughput": "HIGH", "latency": "LOW", "byteWidth": 8, "freqRatio": 2, "read_power": 21.6, "write_power": 20.0 },
+			"offset": { "value": "0x2FFF0000", "magnitude": "BYTES" },
+			"size":   { "value": "64", "magnitude": "KBYTES" }
+		},
+		{
+			"fname": "ahbSRAM1",
+			"name":  "ahbSRAM1",
+			"fformat": "FORMAT_RAW",
+			"prop": { "rights": "ACC_WRITE", "throughput": "MID", "latency": "MID", "byteWidth": 4, "freqRatio": 2, "read_power": 21.6, "write_power": 20.0 },
+			"offset": { "value": "0x30000000", "magnitude": "BYTES" },
+			"size":   { "value": "16", "magnitude": "KBYTES" }
+		},
+		{
+			"fname": "ahbSRAM2",
+			"name":  "ahbSRAM2",
+			"fformat": "FORMAT_RAW",
+			"prop": { "rights": "ACC_WRITE", "throughput": "MID", "latency": "MID", "byteWidth": 4, "freqRatio": 2, "read_power": 21.6, "write_power": 20.0 },
+			"offset": { "value": "0x30004000", "magnitude": "BYTES" },
+			"size":   { "value": "16", "magnitude": "KBYTES" }
+		},
+		{
+			"fname": "ahbSRAM3",
+			"name":  "ahbSRAM3",
+			"fformat": "FORMAT_RAW",
+			"prop": { "rights": "ACC_WRITE", "throughput": "MID", "latency": "MID", "byteWidth": 4, "freqRatio": 2, "read_power": 21.6, "write_power": 20.0 },
+			"offset": { "value": "0x30008000", "magnitude": "BYTES" },
+			"size":   { "value": "80", "magnitude": "KBYTES" }
+		}
+		]
+	}
+}

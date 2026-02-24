@@ -1,0 +1,13 @@
+"C:\Embedded Workbench\IAR\IAR9.40.1\arm\bin\armPROC.dll" 
+
+"C:\Embedded Workbench\IAR\IAR9.40.1\arm\bin\armSTLINK.dll" 
+
+"C:\Examples\stm32ai_N6_validation_project\Projects\NPU_Validation\EWARM\N6-DK-USB\Exe\Project.out" 
+
+--plugin="C:\Embedded Workbench\IAR\IAR9.40.1\arm\bin\armbat.dll" 
+
+--macro="C:\Examples\stm32ai_N6_validation_project\Projects\NPU_Validation\EWARM\n6.mac" 
+
+
+
+
