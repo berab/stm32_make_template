@@ -1,0 +1,4 @@
+model,cycles,time(ms)
+network,2427,0.003034
+fff_v1,2379,0.0.002974
+fff_v2,2387,0.0.002984

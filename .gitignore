@@ -1,9 +1,9 @@
-STM32L4xx_HAL_Driver
-build
+STM32L4xx_HAL_Driver/
+build/
 .gdbinit
 compile_commands.json
-build
 *.log
-st_ai_output
-st_ai_ws
+st_ai_ws/
 other_models
+X-CUBE-AI/App/*network*
+.cache/

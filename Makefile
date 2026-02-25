@@ -8,7 +8,11 @@ rwildcard=$(foreach d,$(wildcard $(1:=/*)),$(call rwildcard,$d,$2) $(filter $(su
 ######################################
 # target
 ######################################
-TARGET = Project
+TARGET = stm32n6_ai_npu_project
+GDB_CONFIG := .gdbinit
+GDB = gdb-multiarch
+DEBUG_PORT := 61234
+RESULT_DIR := results
 # Build configs are either N6-DK (default) or N6-DK-legacy, N6-Nucleo
 BUILD_CONF ?= N6-Nucleo
 # Generate lst files with gcc (set it to a value to generate listings)
@@ -17,8 +21,11 @@ GENERATE_LISTINGS=
 # Processed on NPU or CM55
 MODEL_DIR = onnx_models
 MODEL = network
-# MODEL = fff_v1
+ifndef ONNX_MODEL
+	ONNX_MODEL = $(MODEL)
+endif
 MODEL_OUTPUT_DIR = st_ai_output
+MODEL_WS_DIR = st_ai_ws
 AI_FLAGS = --st-neural-art
 
 ######################################
@@ -36,19 +43,23 @@ endif
 #######################################
 # paths
 #######################################
-AICORE_PATH = ./AI
-PROJECT_PATH = .
-CORE_PATH = $(PROJECT_PATH)/Core
-VALIDATION_PATH = $(PROJECT_PATH)/X-CUBE-AI/App
+
+# ST
+stlink =  /opt/st/stm32cubeide_2.0.0/plugins/com.st.stm32cube.ide.mcu.externaltools.stlink-gdb-server.linux64_2.2.300.202509021040/tools/bin/ST-LINK_gdbserver
+st_prog_bin = /home/kilic/apps/STM32CubeProgrammer/bin
+st_prog = $(st_prog_bin)/STM32_Programmer_CLI
+
+# AI
+AICORE_PATH = /home/kilic/apps/STEdgeAI/4.0/
+VALIDATION_PATH = X-CUBE-AI/App
 MIDDLEWARES_PATH = $(AICORE_PATH)/Middlewares/ST
 # --- ATON specific
-ATON_PATH = $(PROJECT_PATH)/X-CUBE-AI/atonn
+# ATON_PATH = X-CUBE-AI/atonn
 ATON_RT_PATH = $(AICORE_PATH)/Middlewares/ST/AI/Npu/ll_aton
 # --- Drivers specific
-BSP_PATH = $(PROJECT_PATH)/Drivers/BSP
-CMSIS_PATH = $(PROJECT_PATH)/Drivers/CMSIS
-N6_DRIVER_PATH = $(PROJECT_PATH)/Drivers/STM32N6xx_HAL_Driver
-DK_DRIVER_PATH = $(BSP_PATH)/STM32N6570-DK
+BSP_PATH = Drivers/BSP
+CMSIS_PATH = Drivers/CMSIS
+N6_DRIVER_PATH = Drivers/STM32N6xx_HAL_Driver
 NUCLEO_DRIVER_PATH = $(BSP_PATH)/STM32N6xx_Nucleo
 
 ######################################
@@ -103,7 +114,7 @@ DRIVER_SOURCES += $(N6_DRIVER_PATH)/Src/stm32n6xx_hal_xspi.c
 #DRIVER_SOURCES += $(wildcard $(CMSIS_PATH)/DSP/Source/SupportFunctions/*.c)
 
 # EndOfCMSIS #
-APP_PATH = $(CORE_PATH)/Src
+APP_PATH = Core/Src
 APP_SOURCES += $(APP_PATH)/main.c
 APP_SOURCES += $(APP_PATH)/stm32n6xx_it.c
 APP_SOURCES += $(APP_PATH)/md5.c
@@ -122,7 +133,7 @@ ASM_SOURCES += ./startup_stm32n657xx.s
 #######################################
 PREFIX = arm-none-eabi-
 # The gcc compiler bin path can be either defined in make command via GCC_PATH variable (> make GCC_PATH=xxx)
-# either it can be added to the PATH environment variable.
+# either it can be added to the PATH environment variable = /home/kilic/downloads/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin/arm-none-eabi
 ifdef GCC_PATH
 CC = $(GCC_PATH)/$(PREFIX)gcc
 AS = $(GCC_PATH)/$(PREFIX)gcc -x assembler-with-cpp
@@ -170,8 +181,8 @@ C_INCLUDES += -I$(CMSIS_PATH)/Device/ST/STM32N6xx/Include
 C_INCLUDES += -I$(CMSIS_PATH)/Device/ST/STM32N6xx/Include/Templates
 C_INCLUDES += -I$(CMSIS_PATH)/DSP/Include
 C_INCLUDES += -I$(N6_DRIVER_PATH)/Inc
-C_INCLUDES += -I$(CORE_PATH)/Inc
-C_INCLUDES += -I$(ATON_PATH)
+C_INCLUDES += -ICore/Inc
+# C_INCLUDES += -I$(ATON_PATH)
 C_INCLUDES += -I$(ATON_RT_PATH)
 C_INCLUDES += -I$(MIDDLEWARES_PATH)/AI/Inc
 C_INCLUDES += -I$(VALIDATION_PATH)
@@ -181,31 +192,26 @@ C_INCLUDES += -I$(MIDDLEWARES_PATH)/AI/Misc/Inc
 C_INCLUDES += -I$(MIDDLEWARES_PATH)/AI/Validation/Inc
 
 # DEPENDING ON THE TARGET BUILD, add extra files/defines:
-ifeq ($(BUILD_CONF),N6-DK-legacy)
--include mk/N6-DK-legacy.mk
-else ifeq ($(BUILD_CONF),N6-Nucleo)
--include mk/N6-Nucleo.mk
-else ifeq ($(BUILD_CONF),N6-DK)
--include mk/N6-DK.mk
-else ifeq ($(BUILD_CONF),N6-DK-RELOC)
--include mk/N6-DK.mk
--include mk/reloc.mk
-else ifeq ($(BUILD_CONF),N6-DK-USB)
--include mk/N6-DK.mk
--include mk/USBx.mk
-else ifeq ($(BUILD_CONF),N6-DK-USB-RELOC)
--include mk/N6-DK.mk
--include mk/USBx.mk
--include mk/reloc.mk
-else ifeq ($(BUILD_CONF),N6-Nucleo-USB)
--include mk/N6-Nucleo.mk
--include mk/USBx.mk
-else
-$(error Please use a known build configuration (N6-DK, N6-Nucleo, ...))
-endif
+#
+# Makefile additions for N6-Nucleo
+#
+C_DEFS += -DUSE_STM32N6xx_NUCLEO
+
+# To prevent configuring external RAM (not present on Nucleo)
+C_DEFS += -DNUCLEO_N6_CONFIG=1
+
+# Board-specific includes/sources (BSP + memories management)
+C_INCLUDES += -I$(BSP_PATH)/Components/mx25um51245g
+C_INCLUDES += -I$(BSP_PATH)/STM32N6xx_Nucleo
+C_INCLUDES += -I$(NUCLEO_DRIVER_PATH)
+#
+DRIVER_SOURCES += $(NUCLEO_DRIVER_PATH)/stm32n6xx_nucleo.c
+DRIVER_SOURCES += $(NUCLEO_DRIVER_PATH)/stm32n6xx_nucleo_xspi.c
+DRIVER_SOURCES += $(NUCLEO_DRIVER_PATH)/stm32n6xx_nucleo_bus.c
+DRIVER_SOURCES += $(BSP_PATH)/Components/mx25um51245g/mx25um51245g.c
 
 # Build path
-BUILD_DIR = build/$(BUILD_CONF)
+BUILD_DIR = build
 
 ASFLAGS = $(MCU) $(AS_DEFS) $(AS_INCLUDES) $(OPT) -Wall -fdata-sections -ffunction-sections
 CFLAGS = $(CFLAGS_OTHERS) $(MCU) $(C_DEFS) $(C_INCLUDES) $(OPT) -Wall -fdata-sections -ffunction-sections
@@ -225,7 +231,7 @@ endif
 LDFLAGS_OTHERS = -Wl,--wrap=malloc --verbose
 
 # libraries
-LIBS = -lc -lm -lnosys -l:NetworkRuntime1100_CM55_GCC.a
+LIBS = -lc -lm -lnosys -l:NetworkRuntime1200_CM55_GCC.a
 LIBDIR = $(AICORE_PATH)/Middlewares/ST/AI/Lib/GCC/ARMCortexM55
 LDFLAGS = $(MCU) -specs=nano.specs -T$(LDSCRIPT) -L$(LIBDIR) $(LIBS) $(LDFLAGS_OTHERS) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref -Wl,--gc-sections
 # Uncomment to enable %f formatted output
@@ -286,7 +292,9 @@ endef
 ############################ Targets ##########################
 .PHONY: clean test
 # default action: build all
-all: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET).bin
+all: $(VALIDATION_PATH) $(MODEL_WS_DIR) $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET).bin
+debug: gdbinit reset run_stlink run_gdb
+flash: all reset flash_program
 
 # For each element of the list [1...length(app_sources)], create a rule by calling make_obj with arguments: $1=APP_OBJ[i], $2=APP_SOURCES[i]
 # Using seq <start> <step> <end> to generate the list of indices --step is mandatory on some flavors of seq (eg macOS)
@@ -296,6 +304,9 @@ $(foreach i,$(shell seq 1 1 $(words $(ATON_SOURCES))),$(eval $(call make_obj_c_r
 $(foreach i,$(shell seq 1 1 $(words $(VALIDATION_SOURCES))),$(eval $(call make_obj_c_rule,$(word $(i),$(VALIDATION_OBJ)),$(word $(i),$(VALIDATION_SOURCES)))))
 $(foreach i,$(shell seq 1 1 $(words $(USB_SOURCES))),$(eval $(call make_obj_c_rule,$(word $(i),$(USB_OBJ)),$(word $(i),$(USB_SOURCES)))))
 $(foreach i,$(shell seq 1 1 $(words $(ASM_SOURCES))),$(eval $(call make_obj_asm_rule,$(word $(i),$(ASM_OBJ)),$(word $(i),$(ASM_SOURCES)))))
+
+$(VALIDATION_PATH) $(MODEL_WS_DIR):
+	stedgeai generate -m $(MODEL_DIR)/$(ONNX_MODEL)_uint8.onnx --target stm32n6 $(AI_FLAGS) --name $(MODEL) --output $(VALIDATION_PATH)
 
 $(BUILD_DIR)/%.o: %.S Makefile | $(BUILD_DIR)
 	@mkdir -p $(dir $@)
@@ -317,34 +328,60 @@ $(BUILD_DIR)/%.hex: $(BUILD_DIR)/%.elf | $(BUILD_DIR)
 $(BUILD_DIR)/%.bin: $(BUILD_DIR)/%.elf | $(BUILD_DIR)
 	$(BIN) $< $@
 
-$(BUILD_DIR):
+$(BUILD_DIR): #
 	mkdir -p $@
 
-$(MODEL_OUTPUT_DIR):
-	stedgeai generate -m $(MODEL_DIR)/$(MODEL)_uint8.onnx --target stm32n6 $(AI_FLAGS) --name $(MODEL)
-	cp $(MODEL_OUTPUT_DIR)/* $(VALIDATION_PATH)/ -r
+$(GDB_CONFIG):# 
+	@echo " creating .gdbinit..."
+	@printf "file $(BUILD_DIR)/$(TARGET).elf\ntarget remote localhost:$(DEBUG_PORT)\nload\nbreak main\ncontinue\nlay next\nlay next\nlay next\nlist\nnext" > $(GDB_CONFIG)
 
 # Converting meomry files to .hex / not sure why xd
 convert:
-	$(CP) --change-addresses 0x71000000 -Ibinary -Oihex $(MODEL_OUTPUT_DIR)/$(MODEL)_atonbuf.xSPI2.raw $(MODEL_OUTPUT_DIR)/$(MODEL)_atonbuf.xSPI2.hex
+	$(CP) --change-addresses 0x71000000 -Ibinary -Oihex $(VALIDATION_PATH)/$(MODEL)_atonbuf.xSPI2.raw $(VALIDATION_PATH)/$(MODEL)_atonbuf.xSPI2.hex
 
 reset:
-	$(st_prog) -q -c port=SWD mode=powerdown freq=2000 ap=1
+	$(st_prog) -q -c port=SWD mode=powerdown freq=2000 ap=0
 
-flash:
-	$(st_prog) -q -c port=SWD mode=hotplug ap=1 --extload $(st_prog_bin)/ExternalLoader/MX25UM51245G_STM32N6570-NUCLEO.stldr --download st_ai_output/$(MODEL)_atonbuf.xSPI2.hex --verify
+flash_model:
+	$(st_prog) -q -c port=SWD mode=hotplug ap=0 --extload $(st_prog_bin)/ExternalLoader/MX25UM51245G_STM32N6570-NUCLEO.stldr --download st_ai_output/$(MODEL)_atonbuf.xSPI2.hex --verify
 
-gdb_server:
-	$(stlink) -d --frequency 2000 --apid 1 -v --port-number 61234 -cp $(st_prog_bin)
+flash_program:
+	$(st_prog) -q -c port=SWD -w $(BUILD_DIR)/$(TARGET).elf -rst
 
-debug:
-	$(GDB) -batch --command=AI/Projects/STM32N6570-DK/Applications/NPU_Validation/armgcc/n6_commands.gdb AI/Projects/STM32N6570-DK/Applications/NPU_Validation/armgcc/build/N6-Nucleo/Project.elf
+run_stlink:
+	$(stlink) --frequency 2000 --port-number $(DEBUG_PORT) -cp $(st_prog_bin) --apid 1 -l 0 -d -s &
+
+run_gdb:
+	$(GDB)
+
+gdbinit: $(GDB_CONFIG)
+
+bearme: clean bear
+
+bear:
+	@echo "Generating compile_commands.json..."
+	bear -- make
+
+tcount: # Put delay in case you don't want to push reset button every time
+	@echo "Reading timer count from device..."
+	ADDR=$$(arm-none-eabi-nm $(BUILD_DIR)/$(TARGET).elf | grep g_elapsed_ms | awk '{print $$1}' | tr 'a-f' 'A-F'); \
+	echo "Reading the timer count at 0x$$ADDR..."; \
+	TIME_HEX=$$($(st_prog) -q -c port=SWD -r32 0x$$ADDR 0x1 | grep "$$ADDR : " | cut -d' ' -f3); \
+	TIME_DEC=$$(printf "%d" 0x$$TIME_HEX); \
+	echo "Value at 0x$$ADDR: hex=$$TIME_HEX, dec=$$TIME_DEC"; \
+	echo "$(DEPTH),$(LEAF_WIDTH),$$TIME_DEC" >> $(OUT_DIR)/$(TASK).csv
+
+# gdb_server:
+# 	$(stlink) -d --frequency 2000 --apid 1 -v --port-number 61234 -cp $(st_prog_bin)
+
+# run_gdb:
+# 	$(GDB) -batch --command=n6_commands.gdb $(BUILD)/$(TARGET).elf
 
 #######################################
 # clean up
 #######################################
 clean:
-	-rm -fR $(BUILD_DIR)
+	-rm -fR $(BUILD_DIR) $(MODEL_WS_DIR) $(VALIDATION_PATH)/*network* $(GDB_CONFIG)
 
 test: 
 #$(foreach var,$(.VARIABLES),$(info $(var) = $($(var))))
