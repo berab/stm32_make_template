@@ -181,7 +181,7 @@ LDFLAGS = $(MCU) -specs=nano.specs -T$(LDSCRIPT) $(LIBDIR) $(LIBS) -Wl,-Map=$(BU
 
 # default action: build all
 all: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET).bin
-debug: $(GDB_CONFIG) run_openocd run_gdb
+debug: $(GDB_CONFIG) run_openocd run_gdb kill_openocd
 
 #######################################
 # build the application
@@ -222,13 +222,16 @@ $(BUILD_DIR):
 
 flash:
 	@echo "Flashing target..."
-	openocd -f interface/stlink.cfg -f target/stm32l4x.cfg -c "program $(BUILD_DIR)/$(TARGET).hex verify reset" -c shutdown
+	openocd -f interface/stlink.cfg -f target/stm32l4x.cfg \
+		-c "program $(BUILD_DIR)/$(TARGET).hex verify" \
+		-c "reset" -c "shutdown"
 
 run_openocd:
-	openocd -f interface/stlink.cfg -f target/stm32l4x.cfg -d0 > /dev/null & echo $$! > .openocd.pid; sleep 1
+	openocd -f interface/stlink.cfg -f target/stm32l4x.cfg -d0 \
+        -c "reset_config srst_only" &
 
 kill_openocd:
-	kill `cat .openocd.pid`
+	killall openocd
 
 run_gdb:
 	$(GDB)
